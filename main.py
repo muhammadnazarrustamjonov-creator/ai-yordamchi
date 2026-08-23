@@ -155,8 +155,9 @@ HTML_PAGE = """
                     statusEl.innerText = "✅ Javob tayyor. Tugmani qayta bosing.";
 
                 } catch (err) {
-                    statusEl.innerText = "❌ Xatolik: " + (err.message || 'Noma\'lum xatolik');
-                    chatBox.innerHTML += "<br><br><b>Xatolik:</b> " + (err.message || 'Noma\'lum xatolik');
+                    const errMsg = err.message || 'Xatolik yuz berdi';
+                    statusEl.innerText = "❌ Xatolik: " + errMsg;
+                    chatBox.innerHTML += "<br><br><b>Xatolik:</b> " + errMsg;
                 }
             };
 
@@ -166,7 +167,7 @@ HTML_PAGE = """
                     'audio-capture': 'Mikrofon qayd qilina olmadi',
                     'not-allowed': 'Mikrofon uchun ruxsat berilmadi',
                     'network': 'Tarmoq xatosi',
-                    'service-not-allowed': 'Servis qo\'llabilmadi'
+                    'service-not-allowed': 'Servis qo\'llanilmadi'
                 };
                 const errorMsg = errorMessages[event.error] || event.error;
                 statusEl.innerText = "❌ Xatolik: " + errorMsg + ". Tugmani qayta bosing.";
