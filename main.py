@@ -1,180 +1,133 @@
 import os
-
-from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from google import genai
-from pydantic import BaseModel
 
-load_dotenv()
+app = FastAPI()
 
-app = FastAPI(title="Steve AI Serveri")
+# Statik fayllar va manifest uchun papka sozlamalari
+# (Agar static papkasi bo'lmasa, uni yaratib qo'yasiz)
+if os.path.exists("static"):
+    app.mount("/static", StaticFiles(directory="static"), name="static")
 
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-SYSTEM_INSTRUCTION = "You are Steve, a helpful AI assistant. Always introduce yourself as Steve."
-
-
-class ChatRequest(BaseModel):
-    message: str
-
+# Gemini API ni sozlash (Render'dagi Environment variable'dan kalitni oladi)
+client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 
 @app.get("/", response_class=HTMLResponse)
-def home():
-    return HTMLResponse(
-        """
-        <!DOCTYPE html>
-        <html lang="uz">
-        <head>
-            <meta charset="UTF-8" />
-            <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-            <title>Steve AI</title>
-            <style>
-                body {
-                    font-family: Arial, sans-serif;
-                    margin: 0;
-                    background: #111827;
-                    color: #f9fafb;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    min-height: 100vh;
-                }
-                .card {
-                    width: min(90vw, 700px);
-                    background: rgba(17, 24, 39, 0.9);
-                    border: 1px solid #374151;
-                    border-radius: 16px;
-                    padding: 24px;
-                    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
-                }
-                h1 {
-                    margin-top: 0;
-                    font-size: 28px;
-                }
-                #status {
-                    color: #93c5fd;
-                    margin-bottom: 16px;
-                    min-height: 24px;
-                }
-                #result {
-                    white-space: pre-wrap;
-                    background: #0f172a;
-                    border: 1px solid #334155;
-                    border-radius: 10px;
-                    padding: 16px;
-                    line-height: 1.6;
-                    min-height: 120px;
-                }
-            </style>
-        </head>
-        <body>
-            <div class="card">
-                <h1>Steve AI</h1>
-                <div id="status">Mikrofon ishga tayyorlanmoqda...</div>
-                <div id="result">Gapingizni ayting...</div>
-            </div>
+async def index(request: Request):
+    html_content = """
+    <!DOCTYPE html>
+    <html lang="uz">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Steve AI Assistant</title>
+        <!-- PWA uchun manifest ulanishi -->
+        <link rel="manifest" href="/manifest.json">
+        <meta name="theme-color" content="#1f1f1f">
+        <style>
+            body {
+                background-color: #121212;
+                color: #ffffff;
+                font-family: Arial, sans-serif;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                height: 100vh;
+                margin: 0;
+            }
+            .container {
+                text-align: center;
+                width: 90%;
+                max-width: 400px;
+            }
+            button {
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                padding: 15px 30px;
+                font-size: 18px;
+                border-radius: 8px;
+                cursor: pointer;
+                margin-top: 20px;
+            }
+            button:active {
+                background-color: #45a049;
+            }
+            #response {
+                margin-top: 20px;
+                font-size: 16px;
+                line-height: 1.5;
+                background: #1f1f1f;
+                padding: 15px;
+                border-radius: 8px;
+                min-height: 50px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h2>Steve AI Assistant</h2>
+            <p>Gapirish uchun tugmani bosing:</p>
+            <button onclick="startListening()">Mikrofonni yoqish</button>
+            <div id="response">Tayyor...</div>
+        </div>
 
-            <script>
-                const statusEl = document.getElementById('status');
-                const resultEl = document.getElementById('result');
-
-                function setStatus(message) {
-                    statusEl.textContent = message;
+        <script>
+            async function startListening() {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                if (!SpeechRecognition) {
+                    alert("Brauzeringiz ovozni tanishni qo'llab-quvvatlamaydi.");
+                    return;
                 }
 
-                function startListening() {
-                    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                const recognition = new SpeechRecognition();
+                recognition.lang = 'uz-UZ';
+                
+                recognition.onstart = function() {
+                    document.getElementById('response').innerText = "Tinglayapman...";
+                };
 
-                    if (!SpeechRecognition) {
-                        setStatus('Bu brauzer ovozli kirishni qo\'llab-quvvatlamaydi.');
-                        return;
+                recognition.onresult = async function(event) {
+                    const text = event.results[0][0].transcript;
+                    document.getElementById('response').innerText = "Siz: " + text;
+
+                    // Serverga so'rov yuborish
+                    try {
+                        let res = await fetch('/ask', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ prompt: text })
+                        });
+                        let data = await res.json();
+                        document.getElementById('response').innerText = data.answer;
+                    } catch (err) {
+                        document.getElementById('response').innerText = "Xatolik yuz berdi.";
                     }
+                };
 
-                    const recognition = new SpeechRecognition();
-                    recognition.lang = 'uz-UZ';
-                    recognition.interimResults = false;
-                    recognition.continuous = false;
+                recognition.start();
+            }
+        </script>
+    </body>
+    </html>
+    """
+    return HTMLResponse(content=html_content)
 
-                    recognition.onstart = function () {
-                        setStatus('Mikrofon yoqildi. Gaplaringizni tinglayapman...');
-                    };
-
-                    recognition.onresult = async function (event) {
-                        const transcript = event.results[0][0].transcript.trim();
-
-                        if (!transcript) {
-                            setStatus('Hech narsa tushunilmadi. Qayta urinib ko\'ramiz...');
-                            recognition.start();
-                            return;
-                        }
-
-                        resultEl.textContent = 'Foydalanuvchi: ' + transcript;
-                        setStatus('Gap qabul qilindi. Serverga yuborilmoqda...');
-
-                        try {
-                            const response = await fetch('/chat', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json'
-                                },
-                                body: JSON.stringify({ message: transcript })
-                            });
-
-                            const data = await response.json();
-
-                            if (!response.ok) {
-                                throw new Error(data.detail || 'Serverdan javob olinmadi.');
-                            }
-
-                            resultEl.textContent = 'Foydalanuvchi: ' + transcript + '\n\nSteve: ' + (data.response || 'Javob yo\'q');
-                            setStatus('Javob ekranga chiqarildi.');
-                        } catch (error) {
-                            resultEl.textContent = 'Xatolik: ' + (error.message || 'Noma\'lum xatolik');
-                            setStatus('Xatolik yuz berdi.');
-                        }
-                    };
-
-                    recognition.onerror = function (event) {
-                        setStatus('Mikrofon xatosi: ' + event.error);
-                    };
-
-                    recognition.onend = function () {
-                        setStatus('Mikrofon o\'chdi. Qayta boshlanmoqda...');
-                        setTimeout(startListening, 300);
-                    };
-
-                    recognition.start();
-                }
-
-                window.addEventListener('load', startListening);
-            </script>
-        </body>
-        </html>
-        """
-    )
-
-
-@app.post("/chat")
-def chat_with_ai(request: ChatRequest):
-    if not os.getenv("GEMINI_API_KEY"):
-        raise HTTPException(status_code=500, detail="GEMINI_API_KEY not found!")
-
+@app.post("/ask")
+async def ask_ai(request: Request):
+    data = await request.json()
+    user_prompt = data.get("prompt", "")
+    
     try:
-        try:
-            response = client.models.generate_content(
-                model="gemini-3.6-flash",
-                contents=request.message,
-                config={"system_instruction": SYSTEM_INSTRUCTION},
-            )
-        except Exception as primary_error:
-            message = str(primary_error).lower()
-            if "not found" not in message and "404" not in message:
-                raise
-            response = client.models.generate_content(
-                model="gemini-3.6-flash",
-                contents=request.message,
-                config={"system_instruction": SYSTEM_INSTRUCTION},
-            )
-        return {"response": response.text}
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        # Gemini 2.5 Flash yordamida javob olish
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=user_prompt
+        )
+        return {"answer": response.text}
+    except Exception as e:
+        return {"answer": f"Xatolik: {str(e)}"}
