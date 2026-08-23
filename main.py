@@ -3,11 +3,11 @@ import os
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from google import genai
+import google.genai as genai
 from pydantic import BaseModel
 
 load_dotenv()
@@ -27,7 +27,6 @@ if os.path.isdir("static"):
 api_key = os.getenv("GEMINI_API_KEY")
 if not api_key:
     print("WARNING: GEMINI_API_KEY not set. The /chat endpoint will fail until it is configured.")
-client = genai.Client(api_key=api_key)
 
 MANIFEST_PATH = Path(__file__).with_name("manifest.json")
 
@@ -121,34 +120,60 @@ HTML_PAGE = """
   <script>
     const statusEl = document.getElementById('status');
     const outputEl = document.getElementById('output');
+    let recognitionActive = false;
 
     function setStatus(message) {
       statusEl.textContent = message;
+      console.log('[Status]', message);
     }
 
-    function displayUserText(text) {
-      outputEl.textContent = 'Siz: ' + text;
+    function displayOutput(userText, aiResponse = null) {
+      let output = 'Siz: ' + userText;
+      if (aiResponse) {
+        output += '\n\nSteve: ' + aiResponse;
+      }
+      outputEl.textContent = output;
     }
 
-    function sendToServer(message) {
-      return fetch('/chat', {
+    async function sendToServer(message) {
+      if (!message || message.trim().length === 0) {
+        throw new Error('Bo\'sh xabar yuborish mumkin emas.');
+      }
+
+      const response = await fetch('/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message })
-      }).then(async (response) => {
-        const data = await response.json();
-        if (!response.ok) {
-          throw new Error(data.detail || 'Server javob bermadi.');
-        }
-        return data.response || 'Javob yo\'q';
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ message: message.trim() })
       });
+
+      if (!response.ok) {
+        let errorDetail = 'Server xatosi';
+        try {
+          const errorData = await response.json();
+          errorDetail = errorData.detail || errorData.message || errorDetail;
+        } catch (e) {
+          errorDetail = `HTTP ${response.status}: ${response.statusText}`;
+        }
+        throw new Error(errorDetail);
+      }
+
+      const data = await response.json();
+      if (!data.response) {
+        throw new Error('Serverdan bo\'sh javob keldi.');
+      }
+
+      return data.response;
     }
 
     function startListening() {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
       if (!SpeechRecognition) {
-        setStatus('Bu brauzer ovozni tanishni qo\'llab-quvvatlamaydi.');
+        setStatus('❌ Bu brauzer ovozni tanishni qo\'llab-quvvatlamaydi.');
+        outputEl.textContent = 'Iltimos, Chrome, Edge yoki Firefox brauzerini ishlating.';
         return;
       }
 
@@ -158,38 +183,69 @@ HTML_PAGE = """
       recognition.continuous = false;
 
       recognition.onstart = function () {
-        setStatus('Mikrofon yoqildi. Gaplaringizni tinglayapman...');
+        recognitionActive = true;
+        setStatus('🎤 Mikrofon yoqildi. Gaplaringizni tinglayapman...');
       };
 
       recognition.onresult = async function (event) {
+        const isFinal = event.results[0].isFinal;
         const transcript = event.results[0][0].transcript.trim();
 
-        if (!transcript) {
-          setStatus('Hech narsa tushunilmadi. Qayta urinib ko\'ramiz...');
-          recognition.start();
+        if (!transcript || !isFinal) {
           return;
         }
 
-        displayUserText(transcript);
-        setStatus('Gap qabul qilindi. Serverga yuborilmoqda...');
+        recognitionActive = false;
+        setStatus('⏳ Gap qabul qilindi. Serverga yuborilmoqda...');
+        displayOutput(transcript);
 
         try {
-          const aiText = await sendToServer(transcript);
-          outputEl.textContent = 'Siz: ' + transcript + '\n\nSteve: ' + aiText;
-          setStatus('Javob ekranga chiqarildi.');
+          const aiResponse = await sendToServer(transcript);
+          displayOutput(transcript, aiResponse);
+          setStatus('✅ Javob ekranga chiqarildi. Qayta gapirish uchun vaqtini kuting...');
+          
+          setTimeout(() => {
+            setStatus('🔄 Qayta boshlanmoqda...');
+            startListening();
+          }, 1000);
         } catch (error) {
-          outputEl.textContent = 'Xatolik: ' + (error.message || 'Noma\'lum xatolik');
-          setStatus('Xatolik yuz berdi.');
+          const errorMsg = error.message || 'Noma\'lum xatolik';
+          displayOutput(transcript, 'Xatolik: ' + errorMsg);
+          setStatus('❌ Xatolik yuz berdi. Qayta urinib ko\'ramiz...');
+          
+          setTimeout(() => {
+            setStatus('🔄 Qayta boshlanmoqda...');
+            startListening();
+          }, 2000);
         }
       };
 
       recognition.onerror = function (event) {
-        setStatus('Mikrofon xatosi: ' + event.error);
+        let errorMsg = event.error;
+        const errorMap = {
+          'network': 'Tarmoq xatosi',
+          'audio-capture': 'Mikrofon qayd qilina olmadi',
+          'not-allowed': 'Mikrofon uchun ruxsat berilmadi',
+          'no-speech': 'Gapirish aniqlanmadi',
+          'service-not-allowed': 'Servis qo\'llabilmadi'
+        };
+        errorMsg = errorMap[event.error] || errorMsg;
+        
+        setStatus('❌ Mikrofon xatosi: ' + errorMsg);
+        recognitionActive = false;
+
+        setTimeout(() => {
+          setStatus('🔄 Qayta urinib ko\'ramiz...');
+          startListening();
+        }, 2000);
       };
 
       recognition.onend = function () {
-        setStatus('Mikrofon yopildi. Qayta boshlanmoqda...');
-        setTimeout(startListening, 400);
+        recognitionActive = false;
+        if (statusEl.textContent.includes('Javob') || statusEl.textContent.includes('Qayta boshlanmoqda')) {
+          return;
+        }
+        console.log('[Info] Recognition ended');
       };
 
       recognition.start();
@@ -197,13 +253,24 @@ HTML_PAGE = """
 
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {
-        navigator.serviceWorker.register('/service-worker.js').catch(function () {
-          console.warn('Service worker ro\'yxatdan o\'tishda muammo bo\'ldi.');
+        navigator.serviceWorker.register('/service-worker.js').catch(function (err) {
+          console.warn('Service worker ro\'yxatdan o\'tishda muammo bo\'ldi:', err);
         });
       });
     }
 
-    window.addEventListener('load', startListening);
+    window.addEventListener('load', function () {
+      setStatus('🚀 Ilovaga xush kelibsiz!');
+      setTimeout(() => {
+        startListening();
+      }, 500);
+    });
+
+    window.addEventListener('beforeunload', function () {
+      if (recognitionActive) {
+        setStatus('Sahifani tark etish...');
+      }
+    });
   </script>
 </body>
 </html>
@@ -265,9 +332,8 @@ self.addEventListener('fetch', (event) => {
 
 
 @app.post("/chat")
-async def chat_with_ai(request: Request):
-    data = await request.json()
-    user_message = (data.get("message") or "").strip()
+async def chat_with_ai(chat_request: ChatRequest):
+    user_message = chat_request.message.strip()
 
     if not user_message:
         raise HTTPException(status_code=400, detail="message is required")
@@ -275,14 +341,17 @@ async def chat_with_ai(request: Request):
         raise HTTPException(status_code=500, detail="GEMINI_API_KEY not configured")
 
     try:
+        client = genai.Client(api_key=api_key)
         response = client.models.generate_content(
             model="gemini-2.5-flash",
             contents=user_message,
-            config={"system_instruction": "You are Steve, a helpful AI assistant. Answer clearly and briefly."},
+            config=genai.types.GenerateContentConfig(
+                system_instruction="You are Steve, a helpful AI assistant. Answer clearly and briefly."
+            ),
         )
-        return {"response": response.text}
+        return {"response": response.text, "status": "success"}
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail=f"Gemini API xatosi: {str(exc)}") from exc
 
 
 if __name__ == "__main__":
