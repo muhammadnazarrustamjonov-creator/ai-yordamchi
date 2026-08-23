@@ -2,4 +2,6 @@ fastapi
 uvicorn
 python-dotenv
 pydantic
-google-genai
+google-genaigit add .
+git commit -m "Add requirements.txt"
+git push
