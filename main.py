@@ -127,6 +127,10 @@ HTML_PAGE = """
                 statusEl.innerText = "🎤 Eshitayapman, marhamat gapiring...";
             };
 
+            recognition.onerror = function(event) {
+                statusEl.innerText = "❌ Xatolik yuz berdi. Tugmani qayta bosing.";
+            };
+
             recognition.onresult = async function(event) {
                 const userSpeech = event.results[0][0].transcript.trim();
                 if (!userSpeech) {
@@ -159,18 +163,6 @@ HTML_PAGE = """
                     statusEl.innerText = "❌ Xatolik: " + errMsg;
                     chatBox.innerHTML += "<br><br><b>Xatolik:</b> " + errMsg;
                 }
-            };
-
-            recognition.onerror = function(event) {
-                const errorMessages = {
-                    'no-speech': 'Gapirish aniqlanmadi',
-                    'audio-capture': 'Mikrofon qayd qilina olmadi',
-                    'not-allowed': 'Mikrofon uchun ruxsat berilmadi',
-                    'network': 'Tarmoq xatosi',
-                    'service-not-allowed': 'Servis qo\'llanilmadi'
-                };
-                const errorMsg = errorMessages[event.error] || event.error;
-                statusEl.innerText = "❌ Xatolik: " + errorMsg + ". Tugmani qayta bosing.";
             };
 
             recognition.onend = function() {
