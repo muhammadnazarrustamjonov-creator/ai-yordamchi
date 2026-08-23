@@ -111,18 +111,10 @@ HTML_PAGE = """
         const statusEl = document.getElementById('status');
         const chatBox = document.getElementById('chat-box');
 
-        function speakText(text) {
-            if ('speechSynthesis' in window) {
-                const utterance = new SpeechSynthesisUtterance(text);
-                utterance.lang = 'uz-UZ';
-                window.speechSynthesis.speak(utterance);
-            }
-        }
-
-        function startVoice() {
+        async function startVoice() {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!SpeechRecognition) {
-                alert("Brauzeringiz ovozni tanishni qo'llab-quvvatlamaydi.");
+                statusEl.innerText = "❌ Brauzeringiz ovozni tanishni qo'llab-quvvatlamaydi.";
                 return;
             }
 
@@ -136,7 +128,12 @@ HTML_PAGE = """
             };
 
             recognition.onresult = async function(event) {
-                const userSpeech = event.results[0][0].transcript;
+                const userSpeech = event.results[0][0].transcript.trim();
+                if (!userSpeech) {
+                    statusEl.innerText = "❌ Gapirish aniqlanmadi. Qayta tugmani bosing.";
+                    return;
+                }
+
                 chatBox.innerHTML = "<b>Siz:</b> " + userSpeech;
                 statusEl.innerText = "⏳ O'ylayapman...";
 
@@ -146,28 +143,37 @@ HTML_PAGE = """
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ message: userSpeech })
                     });
+
+                    if (!res.ok) {
+                        throw new Error('Server xatosi: ' + res.statusText);
+                    }
+
                     const data = await res.json();
                     const reply = data.response || "Javob topilmadi.";
-                    
-                    chatBox.innerHTML += "<br><br><b>Steve:</b> " + reply;
-                    statusEl.innerText = "🔊 Javob berilmoqda...";
-                    
-                    speakText(reply);
 
-                    setTimeout(() => {
-                        startVoice();
-                    }, 4000);
+                    chatBox.innerHTML += "<br><br><b>Steve:</b> " + reply;
+                    statusEl.innerText = "✅ Javob tayyor. Tugmani qayta bosing.";
 
                 } catch (err) {
-                    statusEl.innerText = "❌ Xatolik yuz berdi.";
+                    statusEl.innerText = "❌ Xatolik: " + (err.message || 'Noma\'lum xatolik');
+                    chatBox.innerHTML += "<br><br><b>Xatolik:</b> " + (err.message || 'Noma\'lum xatolik');
                 }
             };
 
             recognition.onerror = function(event) {
-                statusEl.innerText = "Mikrofon xatosi. Qayta urinilmoqda...";
-                setTimeout(() => {
-                    startVoice();
-                }, 2000);
+                const errorMessages = {
+                    'no-speech': 'Gapirish aniqlanmadi',
+                    'audio-capture': 'Mikrofon qayd qilina olmadi',
+                    'not-allowed': 'Mikrofon uchun ruxsat berilmadi',
+                    'network': 'Tarmoq xatosi',
+                    'service-not-allowed': 'Servis qo\'llabilmadi'
+                };
+                const errorMsg = errorMessages[event.error] || event.error;
+                statusEl.innerText = "❌ Xatolik: " + errorMsg + ". Tugmani qayta bosing.";
+            };
+
+            recognition.onend = function() {
+                console.log('Recognition ended');
             };
 
             recognition.start();
