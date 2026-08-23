@@ -12,7 +12,7 @@ from pydantic import BaseModel
 
 load_dotenv()
 
-app = FastAPI(title="Steve AI Assistant", version="1.0.0")
+app = FastAPI(title="Steve Assistant", version="1.0.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -37,7 +37,7 @@ HTML_PAGE = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Steve AI</title>
+    <title>Steve</title>
     <style>
         body {
             margin: 0;
@@ -53,79 +53,121 @@ HTML_PAGE = """
             background: #1e293b;
             padding: 30px;
             border-radius: 16px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
             width: 90%;
-            max-width: 500px;
+            max-width: 550px;
             text-align: center;
+            border: 1px solid #334155;
         }
-        h1 { margin-bottom: 10px; color: #38bdf8; }
-        #status { color: #94a3b8; margin-bottom: 20px; font-size: 14px; }
+        h1 { margin-bottom: 5px; color: #38bdf8; }
+        .sub { color: #94a3b8; font-size: 13px; margin-bottom: 20px; }
+        #status { 
+            color: #38bdf8; 
+            margin-bottom: 15px; 
+            font-weight: bold; 
+            font-size: 15px;
+            padding: 10px;
+            background: #0f172a;
+            border-radius: 8px;
+            border: 1px solid #334155;
+        }
         #chat-box {
             background: #0f172a;
             border: 1px solid #334155;
             border-radius: 8px;
             padding: 15px;
-            min-height: 120px;
+            min-height: 140px;
             text-align: left;
             margin-bottom: 15px;
             overflow-y: auto;
-            max-height: 200px;
+            max-height: 250px;
             white-space: pre-wrap;
+            font-size: 14px;
+            line-height: 1.5;
         }
         button {
             background: #0284c7;
             color: white;
             border: none;
-            padding: 10px 20px;
+            padding: 12px 24px;
             border-radius: 8px;
             cursor: pointer;
             font-size: 16px;
+            font-weight: bold;
         }
         button:hover { background: #0369a1; }
     </style>
 </head>
 <body>
     <div class="card">
-        <h1>Steve AI</h1>
-        <div id="status">Mikrofonni yoqish uchun tugmani bosing</div>
-        <div id="chat-box">Gapiring...</div>
-        <button onclick="startListening()">Ovozli gapirish 🎤</button>
+        <h1>Steve</h1>
+        <div class="sub">Ovozli yordamchi</div>
+        <div id="status">Tizimga xush kelibsiz. Tugmani bosing va gapiring...</div>
+        <div id="chat-box">Suhbat tarixi shu yerda chiqadi...</div>
+        <button onclick="startVoice()">Steve'ni faollashtirish 🎤</button>
     </div>
 
     <script>
-        function startListening() {
+        const statusEl = document.getElementById('status');
+        const chatBox = document.getElementById('chat-box');
+
+        function speakText(text) {
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'uz-UZ';
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        function startVoice() {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!SpeechRecognition) {
-                alert("Sizning brauzeringiz ovozli qidiruvni qo'llab-quvvatlamaydi.");
+                alert("Brauzeringiz ovozni tanishni qo'llab-quvvatlamaydi.");
                 return;
             }
 
             const recognition = new SpeechRecognition();
             recognition.lang = 'uz-UZ';
-            
-            document.getElementById('status').innerText = "Tinglanmoqda... Gapiring!";
+            recognition.interimResults = false;
+            recognition.continuous = false;
+
+            recognition.onstart = function() {
+                statusEl.innerText = "🎤 Eshitayapman, marhamat gapiring...";
+            };
 
             recognition.onresult = async function(event) {
-                const text = event.results[0][0].transcript;
-                document.getElementById('chat-box').innerHTML = "<b>Siz:</b> " + text;
-                document.getElementById('status').innerText = "AI javob bermoqda...";
+                const userSpeech = event.results[0][0].transcript;
+                chatBox.innerHTML = "<b>Siz:</b> " + userSpeech;
+                statusEl.innerText = "⏳ O'ylayapman...";
 
                 try {
-                    const response = await fetch('/chat', {
+                    const res = await fetch('/chat', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ message: text })
+                        body: JSON.stringify({ message: userSpeech })
                     });
-                    const data = await response.json();
-                    document.getElementById('chat-box').innerHTML += "<br><br><b>Steve:</b> " + (data.response || data.reply);
-                    document.getElementById('status').innerText = "Tayyor";
+                    const data = await res.json();
+                    const reply = data.response || "Javob topilmadi.";
+                    
+                    chatBox.innerHTML += "<br><br><b>Steve:</b> " + reply;
+                    statusEl.innerText = "🔊 Javob berilmoqda...";
+                    
+                    speakText(reply);
+
+                    setTimeout(() => {
+                        startVoice();
+                    }, 4000);
+
                 } catch (err) {
-                    document.getElementById('status').innerText = "Xatolik yuz berdi!";
+                    statusEl.innerText = "❌ Xatolik yuz berdi.";
                 }
             };
 
-            recognition.onerror = function() {
-                document.getElementById('status').innerText = "Mikrofonda xatolik!";
+            recognition.onerror = function(event) {
+                statusEl.innerText = "Mikrofon xatosi. Qayta urinilmoqda...";
+                setTimeout(() => {
+                    startVoice();
+                }, 2000);
             };
 
             recognition.start();
@@ -152,6 +194,9 @@ async def chat_with_ai(chat_request: ChatRequest):
         response = client.models.generate_content(
             model="gemini-2.5-flash",
             contents=user_message,
+            config=genai.types.GenerateContentConfig(
+                system_instruction="Sizning ismingiz Steve. Siz aqlli va yordamchi ovozli assistentsiz. Qisqa, aniq va professional tarzda o'zbek tilida javob bering."
+            ),
         )
         return {"response": response.text, "status": "success"}
     except Exception as exc:
