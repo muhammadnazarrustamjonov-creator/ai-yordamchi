@@ -57,17 +57,20 @@ HTML_PAGE = """
       --line: #334155;
     }
 
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
 
     body {
       margin: 0;
+      padding: 0;
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
       background: radial-gradient(circle at top, #1e293b 0%, var(--bg) 55%);
       color: var(--text);
-      font-family: Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     }
 
     .card {
@@ -80,21 +83,26 @@ HTML_PAGE = """
     }
 
     h1 {
-      margin: 0 0 12px;
+      margin: 0 0 12px 0;
       font-size: clamp(2rem, 4vw, 2.4rem);
+      font-weight: 700;
+      color: var(--text);
     }
 
     p {
-      margin: 0;
+      margin: 0 0 20px 0;
       color: var(--muted);
       line-height: 1.6;
+      font-size: 14px;
     }
 
     .status {
       min-height: 28px;
       margin: 18px 0;
+      padding: 8px;
       color: var(--accent);
       font-weight: 600;
+      font-size: 14px;
     }
 
     .output {
@@ -106,6 +114,10 @@ HTML_PAGE = """
       line-height: 1.7;
       white-space: pre-wrap;
       word-break: break-word;
+      font-family: "Monaco", "Courier New", monospace;
+      font-size: 13px;
+      overflow-y: auto;
+      max-height: 400px;
     }
   </style>
 </head>
@@ -118,159 +130,161 @@ HTML_PAGE = """
   </div>
 
   <script>
-    const statusEl = document.getElementById('status');
-    const outputEl = document.getElementById('output');
-    let recognitionActive = false;
+    (function() {
+      const statusEl = document.getElementById('status');
+      const outputEl = document.getElementById('output');
+      let recognitionActive = false;
 
-    function setStatus(message) {
-      statusEl.textContent = message;
-      console.log('[Status]', message);
-    }
-
-    function displayOutput(userText, aiResponse = null) {
-      let output = 'Siz: ' + userText;
-      if (aiResponse) {
-        output += '\n\nSteve: ' + aiResponse;
-      }
-      outputEl.textContent = output;
-    }
-
-    async function sendToServer(message) {
-      if (!message || message.trim().length === 0) {
-        throw new Error('Bo\'sh xabar yuborish mumkin emas.');
+      function setStatus(message) {
+        statusEl.textContent = message;
+        console.log('[Status]', message);
       }
 
-      const response = await fetch('/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({ message: message.trim() })
-      });
-
-      if (!response.ok) {
-        let errorDetail = 'Server xatosi';
-        try {
-          const errorData = await response.json();
-          errorDetail = errorData.detail || errorData.message || errorDetail;
-        } catch (e) {
-          errorDetail = `HTTP ${response.status}: ${response.statusText}`;
+      function displayOutput(userText, aiResponse) {
+        let output = 'Siz: ' + userText;
+        if (aiResponse) {
+          output = output + '\\n\\nSteve: ' + aiResponse;
         }
-        throw new Error(errorDetail);
+        outputEl.textContent = output;
       }
 
-      const data = await response.json();
-      if (!data.response) {
-        throw new Error('Serverdan bo\'sh javob keldi.');
+      async function sendToServer(message) {
+        if (!message || message.trim().length === 0) {
+          throw new Error('Bo\\'sh xabar yuborish mumkin emas.');
+        }
+
+        const response = await fetch('/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({ message: message.trim() })
+        });
+
+        if (!response.ok) {
+          let errorDetail = 'Server xatosi';
+          try {
+            const errorData = await response.json();
+            errorDetail = errorData.detail || errorData.message || errorDetail;
+          } catch (e) {
+            errorDetail = 'HTTP ' + response.status + ': ' + response.statusText;
+          }
+          throw new Error(errorDetail);
+        }
+
+        const data = await response.json();
+        if (!data.response) {
+          throw new Error('Serverdan bo\\'sh javob keldi.');
+        }
+
+        return data.response;
       }
 
-      return data.response;
-    }
+      function startListening() {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-    function startListening() {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-      if (!SpeechRecognition) {
-        setStatus('❌ Bu brauzer ovozni tanishni qo\'llab-quvvatlamaydi.');
-        outputEl.textContent = 'Iltimos, Chrome, Edge yoki Firefox brauzerini ishlating.';
-        return;
-      }
-
-      const recognition = new SpeechRecognition();
-      recognition.lang = 'uz-UZ';
-      recognition.interimResults = false;
-      recognition.continuous = false;
-
-      recognition.onstart = function () {
-        recognitionActive = true;
-        setStatus('🎤 Mikrofon yoqildi. Gaplaringizni tinglayapman...');
-      };
-
-      recognition.onresult = async function (event) {
-        const isFinal = event.results[0].isFinal;
-        const transcript = event.results[0][0].transcript.trim();
-
-        if (!transcript || !isFinal) {
+        if (!SpeechRecognition) {
+          setStatus('❌ Bu brauzer ovozni tanishni qo\\'llab-quvvatlamaydi.');
+          outputEl.textContent = 'Iltimos, Chrome, Edge yoki Firefox brauzerini ishlating.';
           return;
         }
 
-        recognitionActive = false;
-        setStatus('⏳ Gap qabul qilindi. Serverga yuborilmoqda...');
-        displayOutput(transcript);
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'uz-UZ';
+        recognition.interimResults = false;
+        recognition.continuous = false;
 
-        try {
-          const aiResponse = await sendToServer(transcript);
-          displayOutput(transcript, aiResponse);
-          setStatus('✅ Javob ekranga chiqarildi. Qayta gapirish uchun vaqtini kuting...');
-          
-          setTimeout(() => {
-            setStatus('🔄 Qayta boshlanmoqda...');
-            startListening();
-          }, 1000);
-        } catch (error) {
-          const errorMsg = error.message || 'Noma\'lum xatolik';
-          displayOutput(transcript, 'Xatolik: ' + errorMsg);
-          setStatus('❌ Xatolik yuz berdi. Qayta urinib ko\'ramiz...');
-          
-          setTimeout(() => {
-            setStatus('🔄 Qayta boshlanmoqda...');
+        recognition.onstart = function() {
+          recognitionActive = true;
+          setStatus('🎤 Mikrofon yoqildi. Gaplaringizni tinglayapman...');
+        };
+
+        recognition.onresult = async function(event) {
+          const isFinal = event.results[0].isFinal;
+          const transcript = event.results[0][0].transcript.trim();
+
+          if (!transcript || !isFinal) {
+            return;
+          }
+
+          recognitionActive = false;
+          setStatus('⏳ Gap qabul qilindi. Serverga yuborilmoqda...');
+          displayOutput(transcript, null);
+
+          try {
+            const aiResponse = await sendToServer(transcript);
+            displayOutput(transcript, aiResponse);
+            setStatus('✅ Javob ekranga chiqarildi. Qayta gapirish uchun vaqtini kuting...');
+
+            setTimeout(function() {
+              setStatus('🔄 Qayta boshlanmoqda...');
+              startListening();
+            }, 1000);
+          } catch (error) {
+            const errorMsg = error.message || 'Noma\\'lum xatolik';
+            displayOutput(transcript, 'Xatolik: ' + errorMsg);
+            setStatus('❌ Xatolik yuz berdi. Qayta urinib ko\\'ramiz...');
+
+            setTimeout(function() {
+              setStatus('🔄 Qayta boshlanmoqda...');
+              startListening();
+            }, 2000);
+          }
+        };
+
+        recognition.onerror = function(event) {
+          let errorMsg = event.error;
+          const errorMap = {
+            'network': 'Tarmoq xatosi',
+            'audio-capture': 'Mikrofon qayd qilina olmadi',
+            'not-allowed': 'Mikrofon uchun ruxsat berilmadi',
+            'no-speech': 'Gapirish aniqlanmadi',
+            'service-not-allowed': 'Servis qo\\'llabilmadi'
+          };
+          errorMsg = errorMap[event.error] || errorMsg;
+
+          setStatus('❌ Mikrofon xatosi: ' + errorMsg);
+          recognitionActive = false;
+
+          setTimeout(function() {
+            setStatus('🔄 Qayta urinib ko\\'ramiz...');
             startListening();
           }, 2000);
-        }
-      };
-
-      recognition.onerror = function (event) {
-        let errorMsg = event.error;
-        const errorMap = {
-          'network': 'Tarmoq xatosi',
-          'audio-capture': 'Mikrofon qayd qilina olmadi',
-          'not-allowed': 'Mikrofon uchun ruxsat berilmadi',
-          'no-speech': 'Gapirish aniqlanmadi',
-          'service-not-allowed': 'Servis qo\'llabilmadi'
         };
-        errorMsg = errorMap[event.error] || errorMsg;
-        
-        setStatus('❌ Mikrofon xatosi: ' + errorMsg);
-        recognitionActive = false;
 
-        setTimeout(() => {
-          setStatus('🔄 Qayta urinib ko\'ramiz...');
-          startListening();
-        }, 2000);
-      };
+        recognition.onend = function() {
+          recognitionActive = false;
+          if (statusEl.textContent.includes('Javob') || statusEl.textContent.includes('Qayta boshlanmoqda')) {
+            return;
+          }
+          console.log('[Info] Recognition ended');
+        };
 
-      recognition.onend = function () {
-        recognitionActive = false;
-        if (statusEl.textContent.includes('Javob') || statusEl.textContent.includes('Qayta boshlanmoqda')) {
-          return;
-        }
-        console.log('[Info] Recognition ended');
-      };
-
-      recognition.start();
-    }
-
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', function () {
-        navigator.serviceWorker.register('/service-worker.js').catch(function (err) {
-          console.warn('Service worker ro\'yxatdan o\'tishda muammo bo\'ldi:', err);
-        });
-      });
-    }
-
-    window.addEventListener('load', function () {
-      setStatus('🚀 Ilovaga xush kelibsiz!');
-      setTimeout(() => {
-        startListening();
-      }, 500);
-    });
-
-    window.addEventListener('beforeunload', function () {
-      if (recognitionActive) {
-        setStatus('Sahifani tark etish...');
+        recognition.start();
       }
-    });
+
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/service-worker.js').catch(function(err) {
+            console.warn('Service worker ro\\'yxatdan o\\'tishda muammo bo\\'ldi:', err);
+          });
+        });
+      }
+
+      window.addEventListener('load', function() {
+        setStatus('🚀 Ilovaga xush kelibsiz!');
+        setTimeout(function() {
+          startListening();
+        }, 500);
+      });
+
+      window.addEventListener('beforeunload', function() {
+        if (recognitionActive) {
+          setStatus('Sahifani tark etish...');
+        }
+      });
+    })();
   </script>
 </body>
 </html>
