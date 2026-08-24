@@ -402,7 +402,7 @@ async def chat_with_ai(chat_request: ChatRequest):
         client = genai.Client()
         
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-1.5-flash",
             contents=user_message,
             config=genai.types.GenerateContentConfig(
                 system_instruction="Sizning ismingiz Steve. Siz aqlli va yordamchi ovozli assistentsiz. Qisqa, aniq va professional tarzda o'zbek tilida javob bering."
