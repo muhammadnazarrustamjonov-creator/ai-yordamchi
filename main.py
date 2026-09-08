@@ -5,8 +5,7 @@ from dotenv import load_dotenv
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse, PlainTextResponse
 
 from google import genai
 from google.genai import types
@@ -47,15 +46,42 @@ app.add_middleware(
 
 
 # =========================================================
-# STATIC
+# PWA ENDPOINTS (PWABuilder uchun to'g'ridan-to'g'ri javoblar)
 # =========================================================
 
-if os.path.isdir("static"):
-    app.mount(
-        "/static",
-        StaticFiles(directory="static"),
-        name="static"
-    )
+@app.get("/manifest.json")
+def get_manifest():
+    return {
+        "name": "Steve Assistant",
+        "short_name": "Steve",
+        "start_url": "/",
+        "display": "standalone",
+        "background_color": "#0f172a",
+        "theme_color": "#0f172a",
+        "icons": [
+            {
+                "src": "https://pwabuilder.com/assets/images/icon_512.png",
+                "sizes": "512x512",
+                "type": "image/png"
+            }
+        ]
+    }
+
+
+@app.get("/static/service-worker.js")
+def get_service_worker():
+    sw_code = """
+    self.addEventListener('install', (event) => {
+        self.skipWaiting();
+    });
+    self.addEventListener('activate', (event) => {
+        event.clients.claim();
+    });
+    self.addEventListener('fetch', (event) => {
+        event.respondWith(fetch(event.request).catch(() => caches.match(event.request)));
+    });
+    """
+    return PlainTextResponse(sw_code, media_type="application/javascript")
 
 
 # =========================================================
@@ -386,14 +412,7 @@ def chat_with_ai(chat_request: ChatRequest):
             model="gemini-3.5-flash",
             contents=user_message,
             config=types.GenerateContentConfig(
-                system_instruction=(
-                    "Sizning ismingiz Steve. "
-                    "Siz aqlli va foydali sun'iy intellekt "
-                    "yordamchisisiz. "
-                    "Foydalanuvchiga qisqa, aniq, "
-                    "tushunarli va professional tarzda "
-                    "o'zbek tilida javob bering."
-                ),
+                system_instruction="Siz Steve ismli aqlli va foydali sun'iy intellekt yordamchisisiz. O'zbek tilida qisqa, aniq va professional javob bering.",
                 max_output_tokens=1000
             )
         )
