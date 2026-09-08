@@ -54,15 +54,24 @@ def get_manifest():
     return {
         "name": "Steve Assistant",
         "short_name": "Steve",
+        "description": "Sun'iy intellekt yordamchisi",
         "start_url": "/",
         "display": "standalone",
         "background_color": "#0f172a",
         "theme_color": "#0f172a",
+        "orientation": "portrait",
         "icons": [
             {
                 "src": "https://pwabuilder.com/assets/images/icon_512.png",
                 "sizes": "512x512",
-                "type": "image/png"
+                "type": "image/png",
+                "purpose": "any maskable"
+            },
+            {
+                "src": "https://pwabuilder.com/assets/images/icon_512.png",
+                "sizes": "192x192",
+                "type": "image/png",
+                "purpose": "any maskable"
             }
         ]
     }
