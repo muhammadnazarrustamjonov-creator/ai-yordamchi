@@ -77,6 +77,12 @@ HTML_PAGE = """
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Steve Assistant</title>
+    <link rel="manifest" href="/manifest.json">
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/static/service-worker.js');
+      }
+    </script>
     <style>
         * {
             box-sizing: border-box;
@@ -377,7 +383,7 @@ def chat_with_ai(chat_request: ChatRequest):
         client = genai.Client(api_key=api_key)
 
         response = client.models.generate_content(
-            model="gemini-3.5-flash",
+            model="gemini-2.0-flash",
             contents=user_message,
             config=types.GenerateContentConfig(
                 system_instruction=(
