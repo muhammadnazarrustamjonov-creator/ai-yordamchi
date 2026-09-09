@@ -62,16 +62,28 @@ def get_manifest():
         "orientation": "portrait",
         "icons": [
             {
-                "src": "https://pwabuilder.com/assets/images/icon_512.png",
+                "src": "/static/icon-512.png",
                 "sizes": "512x512",
                 "type": "image/png",
-                "purpose": "any maskable"
+                "purpose": "any"
             },
             {
-                "src": "https://pwabuilder.com/assets/images/icon_512.png",
+                "src": "/static/icon-512.png",
+                "sizes": "512x512",
+                "type": "image/png",
+                "purpose": "maskable"
+            },
+            {
+                "src": "/static/icon-192.png",
                 "sizes": "192x192",
                 "type": "image/png",
-                "purpose": "any maskable"
+                "purpose": "any"
+            },
+            {
+                "src": "/static/icon-192.png",
+                "sizes": "192x192",
+                "type": "image/png",
+                "purpose": "maskable"
             }
         ]
     }
@@ -418,7 +430,7 @@ def chat_with_ai(chat_request: ChatRequest):
         client = genai.Client(api_key=api_key)
 
         response = client.models.generate_content(
-            model="gemini-3.5-flash",
+            model="gemini-2.5-flash",
             contents=user_message,
             config=types.GenerateContentConfig(
                 system_instruction="Siz Steve ismli aqlli va foydali sun'iy intellekt yordamchisisiz. O'zbek tilida qisqa, aniq va professional javob bering.",
