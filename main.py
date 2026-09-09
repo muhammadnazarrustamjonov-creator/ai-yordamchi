@@ -46,13 +46,12 @@ app.add_middleware(
 # =========================================================
 # GLOBAL CHAT SESSION (Chat tarixi va xotira uchun)
 # =========================================================
-# Gemini SDK orqali suhbat sessiyasini ochamiz (tarixni saqlab turadi)
 client = genai.Client(api_key=api_key) if api_key else None
 
 chat_session = None
 if client:
     chat_session = client.chats.create(
-        model="gemini-3.5-flash",
+        model="gemini-2.5-flash",
         config=types.GenerateContentConfig(
             system_instruction="Siz Steve ismli aqlli, do'stona va professional sun'iy intellekt yordamchisisiz. O'zbek tilida aniq va tushunarli javob bering.",
             max_output_tokens=2000
@@ -103,15 +102,6 @@ def get_manifest():
                 "sizes": "192x192",
                 "type": "image/png",
                 "purpose": "maskable"
-            }
-        ],
-        "screenshots": [
-            {
-                "src": "/static/screenshot.png",
-                "sizes": "540x720",
-                "type": "image/png",
-                "form_factor": "narrow",
-                "label": "Steve Assistant Chat Interfeysi"
             }
         ],
         "shortcuts": [
@@ -172,7 +162,7 @@ def get_service_worker():
 
 
 # =========================================================
-# HTML & FRONTEND (Fayl yuklash va rasm yuborish qo'shilgan)
+# HTML & FRONTEND
 # =========================================================
 
 HTML_PAGE = """
@@ -342,7 +332,7 @@ HTML_PAGE = """
 
 <div class="card">
     <h1>Steve</h1>
-    <div class="sub">Sun'iy intellekt yordamchisi (Chat tarixi, Rasm va Fayllar bilan)</div>
+    <div class="sub">Sun'iy intellekt yordamchisi</div>
     <div id="status">Tizim tayyor. Matn yozing yoki rasm/fayl yuklang...</div>
     
     <div id="chat-box">
@@ -493,7 +483,7 @@ def index():
 
 
 # =========================================================
-# CHAT API (Multimodal, Chat History va Fayl qabul qilish)
+# CHAT API
 # =========================================================
 
 @app.post("/chat")
@@ -507,7 +497,6 @@ async def chat_with_ai(
     try:
         contents = [message]
 
-        # Agar foydalanuvchi rasm yoki fayl yuklagan bo'lsa
         if file:
             file_bytes = await file.read()
             contents.append(
@@ -517,7 +506,6 @@ async def chat_with_ai(
                 )
             )
 
-        # Chat tarixi saqlangan holda Gemini ga so'rov yuborish
         response = chat_session.send_message(contents)
         reply = response.text if response else "Javob olinmadi."
 
@@ -539,4 +527,4 @@ async def chat_with_ai(
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
-    uvicorn.run("main:app", host="0.0.0.0", port=port)
+    uvicorn.main:app, host="0.0.0.0", port=port
