@@ -34,7 +34,7 @@ app = FastAPI(
 
 
 # =========================================================
-# STATIC FILES (404 xatosini oldini olish uchun static papkani ulash)
+# STATIC FILES (Rasmlar va static papkani ulash)
 # =========================================================
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -53,20 +53,25 @@ app.add_middleware(
 
 
 # =========================================================
-# PWA ENDPOINTS (PWABuilder uchun to'g'ridan-to'g'ri javoblar)
+# PWA ENDPOINTS (To'liq mukammallashtirilgan Manifest va Service Worker)
 # =========================================================
 
 @app.get("/manifest.json")
 def get_manifest():
     return {
+        "id": "/",
         "name": "Steve Assistant",
         "short_name": "Steve",
         "description": "Sun'iy intellekt yordamchisi",
         "start_url": "/",
+        "scope": "/",
         "display": "standalone",
         "background_color": "#0f172a",
         "theme_color": "#0f172a",
         "orientation": "portrait",
+        "lang": "uz",
+        "dir": "ltr",
+        "categories": ["productivity", "utilities", "ai"],
         "icons": [
             {
                 "src": "/static/icon-512.png",
@@ -92,6 +97,24 @@ def get_manifest():
                 "type": "image/png",
                 "purpose": "maskable"
             }
+        ],
+        "screenshots": [
+            {
+                "src": "/static/screenshot.png",
+                "sizes": "540x720",
+                "type": "image/png",
+                "form_factor": "narrow",
+                "label": "Steve Assistant Chat Interfeysi"
+            }
+        ],
+        "shortcuts": [
+            {
+                "name": "Chatni boshlash",
+                "short_name": "Chat",
+                "description": "Steve bilan suhbatni boshlash",
+                "url": "/",
+                "icons": [{ "src": "/static/icon-192.png", "sizes": "192x192" }]
+            }
         ]
     }
 
@@ -99,14 +122,43 @@ def get_manifest():
 @app.get("/static/service-worker.js")
 def get_service_worker():
     sw_code = """
+    const CACHE_NAME = 'steve-cache-v1';
+    const urlsToCache = [
+        '/',
+        '/manifest.json',
+        '/static/icon-192.png',
+        '/static/icon-512.png'
+    ];
+
     self.addEventListener('install', (event) => {
+        event.waitUntil(
+            caches.open(CACHE_NAME).then((cache) => {
+                return cache.addAll(urlsToCache);
+            })
+        );
         self.skipWaiting();
     });
+
     self.addEventListener('activate', (event) => {
+        event.waitUntil(
+            caches.keys().then((cacheNames) => {
+                return Promise.all(
+                    cacheNames.map((cacheName) => {
+                        if (cacheName !== CACHE_NAME) {
+                            return caches.delete(cacheName);
+                        }
+                    })
+                );
+            })
+        );
         event.clients.claim();
     });
+
     self.addEventListener('fetch', (event) => {
-        event.respondWith(fetch(event.request).catch(() => caches.match(event.request)));
+        event.respondWith(
+            fetch(event.request)
+                .catch(() => caches.match(event.request))
+        );
     });
     """
     return PlainTextResponse(sw_code, media_type="application/javascript")
