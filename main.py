@@ -1,9 +1,8 @@
 import os
-
 import uvicorn
 from dotenv import load_dotenv
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
@@ -11,17 +10,12 @@ from fastapi.staticfiles import StaticFiles
 from google import genai
 from google.genai import types
 
-from pydantic import BaseModel
-
-
 # =========================================================
 # ENV
 # =========================================================
 
 load_dotenv()
-
 api_key = os.getenv("GEMINI_API_KEY")
-
 
 # =========================================================
 # FASTAPI
@@ -29,15 +23,13 @@ api_key = os.getenv("GEMINI_API_KEY")
 
 app = FastAPI(
     title="Steve Assistant",
-    version="1.0.0"
+    version="2.0.0"
 )
 
-
 # =========================================================
-# STATIC FILES (Rasmlar va static papkani ulash)
+# STATIC FILES
 # =========================================================
 app.mount("/static", StaticFiles(directory="static"), name="static")
-
 
 # =========================================================
 # CORS
@@ -51,9 +43,24 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# =========================================================
+# GLOBAL CHAT SESSION (Chat tarixi va xotira uchun)
+# =========================================================
+# Gemini SDK orqali suhbat sessiyasini ochamiz (tarixni saqlab turadi)
+client = genai.Client(api_key=api_key) if api_key else None
+
+chat_session = None
+if client:
+    chat_session = client.chats.create(
+        model="gemini-3.5-flash",
+        config=types.GenerateContentConfig(
+            system_instruction="Siz Steve ismli aqlli, do'stona va professional sun'iy intellekt yordamchisisiz. O'zbek tilida aniq va tushunarli javob bering.",
+            max_output_tokens=2000
+        )
+    )
 
 # =========================================================
-# PWA ENDPOINTS (To'liq mukammallashtirilgan Manifest va Service Worker)
+# PWA MANIFEST & SERVICE WORKER
 # =========================================================
 
 @app.get("/manifest.json")
@@ -122,7 +129,7 @@ def get_manifest():
 @app.get("/static/service-worker.js")
 def get_service_worker():
     sw_code = """
-    const CACHE_NAME = 'steve-cache-v1';
+    const CACHE_NAME = 'steve-cache-v2';
     const urlsToCache = [
         '/',
         '/manifest.json',
@@ -165,15 +172,7 @@ def get_service_worker():
 
 
 # =========================================================
-# REQUEST MODEL
-# =========================================================
-
-class ChatRequest(BaseModel):
-    message: str
-
-
-# =========================================================
-# HTML
+# HTML & FRONTEND (Fayl yuklash va rasm yuborish qo'shilgan)
 # =========================================================
 
 HTML_PAGE = """
@@ -206,30 +205,30 @@ HTML_PAGE = """
         }
         .card {
             background: #1e293b;
-            padding: 25px;
+            padding: 20px;
             border-radius: 16px;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
             width: 100%;
-            max-width: 600px;
+            max-width: 650px;
             text-align: center;
             border: 1px solid #334155;
         }
         h1 {
             margin: 0 0 5px 0;
             color: #38bdf8;
-            font-size: 32px;
+            font-size: 28px;
         }
         .sub {
             color: #94a3b8;
             font-size: 13px;
-            margin-bottom: 15px;
+            margin-bottom: 12px;
         }
         #status {
             color: #38bdf8;
             margin-bottom: 10px;
             font-weight: bold;
-            font-size: 14px;
-            padding: 10px;
+            font-size: 13px;
+            padding: 8px;
             background: #0f172a;
             border-radius: 8px;
             border: 1px solid #334155;
@@ -239,42 +238,68 @@ HTML_PAGE = """
             border: 1px solid #334155;
             border-radius: 8px;
             padding: 15px;
-            min-height: 130px;
-            max-height: 300px;
+            min-height: 150px;
+            max-height: 320px;
             text-align: left;
-            margin-bottom: 15px;
+            margin-bottom: 12px;
             overflow-y: auto;
             white-space: pre-wrap;
             font-size: 14px;
             line-height: 1.6;
         }
+        .file-preview {
+            font-size: 12px;
+            color: #38bdf8;
+            margin-bottom: 8px;
+            text-align: left;
+            display: none;
+        }
         .input-group {
             display: flex;
-            gap: 8px;
-            margin-bottom: 10px;
+            gap: 6px;
+            margin-bottom: 8px;
+            align-items: center;
         }
         input[type="text"] {
             flex: 1;
             min-width: 0;
-            padding: 12px 14px;
+            padding: 10px 12px;
             border-radius: 8px;
             border: 1px solid #334155;
             background: #0f172a;
             color: #f8fafc;
-            font-size: 15px;
+            font-size: 14px;
             outline: none;
         }
         input[type="text"]:focus {
             border-color: #38bdf8;
         }
+        .file-btn {
+            background: #334155;
+            color: white;
+            padding: 10px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .file-btn:hover {
+            background: #475569;
+        }
+        input[type="file"] {
+            display: none;
+        }
         button {
             background: #0284c7;
             color: white;
             border: none;
-            padding: 10px 18px;
+            padding: 10px 16px;
             border-radius: 8px;
             cursor: pointer;
-            font-size: 15px;
+            font-size: 14px;
             font-weight: bold;
             transition: 0.2s;
         }
@@ -285,34 +310,29 @@ HTML_PAGE = """
             opacity: 0.6;
             cursor: not-allowed;
         }
+        .actions-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
         .voice-btn {
-            width: 100%;
             background: #334155;
-            margin-top: 5px;
         }
         .voice-btn:hover {
             background: #475569;
         }
-        .user-name {
-            color: #38bdf8;
-            font-weight: bold;
-        }
-        .steve-name {
-            color: #4ade80;
-            font-weight: bold;
-        }
-        .error-name {
-            color: #f87171;
-            font-weight: bold;
-        }
+        .user-msg { color: #38bdf8; font-weight: bold; }
+        .steve-msg { color: #4ade80; font-weight: bold; }
+        .error-msg { color: #f87171; font-weight: bold; }
+        
         @media (max-width: 500px) {
-            .card {
-                padding: 18px;
-            }
             .input-group {
                 flex-direction: column;
             }
-            button {
+            .actions-grid {
+                grid-template-columns: 1fr;
+            }
+            button, .file-btn {
                 width: 100%;
             }
         }
@@ -322,18 +342,28 @@ HTML_PAGE = """
 
 <div class="card">
     <h1>Steve</h1>
-    <div class="sub">Sun'iy intellekt yordamchisi</div>
-    <div id="status">Tizim tayyor. Matn yozing yoki ovozli tugmani bosing...</div>
+    <div class="sub">Sun'iy intellekt yordamchisi (Chat tarixi, Rasm va Fayllar bilan)</div>
+    <div id="status">Tizim tayyor. Matn yozing yoki rasm/fayl yuklang...</div>
+    
     <div id="chat-box">
         <span>Suhbat tarixi shu yerda ko'rsatiladi...</span>
     </div>
 
+    <div id="file-name-display" class="file-preview">Biriktirilgan fayl: <span id="file-title"></span></div>
+
     <div class="input-group">
-        <input type="text" id="user-input" placeholder="Xabaringizni yozing..." onkeydown="checkEnter(event)">
-        <button id="send-button" onclick="sendTextMessage()">Yuborish ➔</button>
+        <input type="text" id="user-input" placeholder="Xabaringizni yozing yoki rasm haqida so'rang..." onkeydown="checkEnter(event)">
+        
+        <label for="file-input" class="file-btn" title="Rasm yoki fayl yuklash">📁 Fayl/Rasm</label>
+        <input type="file" id="file-input" accept="image/*,audio/*,application/pdf,.txt,.py,.js" onchange="handleFileSelect(event)">
+        
+        <button id="send-button" onclick="sendMessage()">Yuborish ➔</button>
     </div>
 
-    <button id="voice-button" class="voice-btn" onclick="startVoice()">Ovoz bilan gapirish 🎤</button>
+    <div class="actions-grid">
+        <button id="voice-button" class="voice-btn" onclick="startVoice()">Ovoz bilan gapirish 🎤</button>
+        <button onclick="clearChatHistory()" style="background: #475569;">Tarixni tozalash 🔄</button>
+    </div>
 </div>
 
 <script>
@@ -342,6 +372,12 @@ HTML_PAGE = """
     const userInput = document.getElementById("user-input");
     const sendButton = document.getElementById("send-button");
     const voiceButton = document.getElementById("voice-button");
+    const fileInput = document.getElementById("file-input");
+    const fileDisplay = document.getElementById("file-name-display");
+    const fileTitle = document.getElementById("file-title");
+
+    let selectedFile = null;
+    let chatHistoryHtml = "";
 
     function escapeHtml(text) {
         const div = document.createElement("div");
@@ -352,56 +388,75 @@ HTML_PAGE = """
     function checkEnter(event) {
         if (event.key === "Enter") {
             event.preventDefault();
-            sendTextMessage();
+            sendMessage();
         }
     }
 
-    async function sendTextMessage() {
-        const text = userInput.value.trim();
-        if (!text) return;
-        userInput.value = "";
-        await processMessage(text);
+    function handleFileSelect(event) {
+        const file = event.target.files[0];
+        if (file) {
+            selectedFile = file;
+            fileTitle.textContent = file.name;
+            fileDisplay.style.display = "block";
+            statusEl.innerText = `📎 Fayl tanlandi: ${file.name}`;
+        }
     }
 
-    async function processMessage(messageText) {
-        const safeMessage = escapeHtml(messageText);
-        chatBox.innerHTML = '<span class="user-name">Siz:</span> ' + safeMessage;
+    function clearChatHistory() {
+        chatHistoryHtml = "";
+        chatBox.innerHTML = '<span>Suhbat tarixi tozalandi. Yangi suhbat boshlang...</span>';
+        statusEl.innerText = "🔄 Tarix tozalandi.";
+    }
+
+    async function sendMessage() {
+        const text = userInput.value.trim();
+        if (!text && !selectedFile) return;
+
+        const displayMessage = text + (selectedFile ? ` [Fayl: ${selectedFile.name}]` : "");
+        const safeMsg = escapeHtml(displayMessage);
+        
+        chatHistoryHtml += `<br><br><span class="user-msg">Siz:</span> ${safeMsg}`;
+        chatBox.innerHTML = chatHistoryHtml;
+        chatBox.scrollTop = chatBox.scrollHeight;
+
+        userInput.value = "";
         statusEl.innerText = "⏳ Steve o'ylayapti...";
         sendButton.disabled = true;
-        voiceButton.disabled = true;
+
+        const formData = new FormData();
+        formData.append("message", text || "Faylni tahlil qil");
+        if (selectedFile) {
+            formData.append("file", selectedFile);
+        }
 
         try {
             const res = await fetch("/chat", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ message: messageText })
+                body: formData
             });
 
             if (!res.ok) {
-                let errorMessage = "Server xatosi";
-                try {
-                    const errorData = await res.json();
-                    if (errorData.detail) errorMessage = errorData.detail;
-                } catch (e) {
-                    errorMessage = `Server xatosi: ${res.status}`;
-                }
-                throw new Error(errorMessage);
+                const errData = await res.json();
+                throw new Error(errData.detail || "Server xatosi");
             }
 
             const data = await res.json();
             const reply = data.response || "Javob topilmadi.";
             const safeReply = escapeHtml(reply);
 
-            chatBox.innerHTML += "<br><br>" + '<span class="steve-name">Steve:</span> ' + safeReply;
-            statusEl.innerText = "✅ Tayyor. Yana savol berishingiz mumkin.";
+            chatHistoryHtml += `<br><br><span class="steve-msg">Steve:</span> ${safeReply}`;
+            chatBox.innerHTML = chatHistoryHtml;
+            chatBox.scrollTop = chatBox.scrollHeight;
+            statusEl.innerText = "✅ Tayyor.";
         } catch (err) {
-            const errMsg = err.message || "Xatolik yuz berdi";
-            chatBox.innerHTML += "<br><br>" + '<span class="error-name">Xatolik:</span> ' + escapeHtml(errMsg);
+            chatHistoryHtml += `<br><br><span class="error-msg">Xatolik:</span> ${escapeHtml(err.message)}`;
+            chatBox.innerHTML = chatHistoryHtml;
             statusEl.innerText = "❌ Xatolik yuz berdi.";
-            console.error("CHAT ERROR:", err);
         } finally {
             sendButton.disabled = false;
-            voiceButton.disabled = false;
+            selectedFile = null;
+            fileInput.value = "";
+            fileDisplay.style.display = "none";
             userInput.focus();
         }
     }
@@ -409,45 +464,22 @@ HTML_PAGE = """
     function startVoice() {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SpeechRecognition) {
-            statusEl.innerText = "❌ Brauzeringiz ovozni tanishni qo'llab-quvvatlamaydi.";
+            statusEl.innerText = "❌ Brauzeringiz ovozni qo'llab-quvvatlamaydi.";
             return;
         }
 
         const recognition = new SpeechRecognition();
         recognition.lang = "uz-UZ";
         recognition.interimResults = false;
-        recognition.continuous = false;
 
-        recognition.onstart = function() {
-            statusEl.innerText = "🎤 Eshitayapman, marhamat gapiring...";
-            voiceButton.disabled = true;
+        recognition.onstart = () => statusEl.innerText = "🎤 Eshitayapman, gapiring...";
+        recognition.onerror = () => statusEl.innerText = "❌ Ovozni aniqlashda xatolik.";
+        recognition.onresult = async (event) => {
+            userInput.value = event.results[0][0].transcript.trim();
+            await sendMessage();
         };
 
-        recognition.onerror = function(event) {
-            console.error("VOICE ERROR:", event);
-            statusEl.innerText = "❌ Ovozni aniqlashda xatolik bo'ldi.";
-            voiceButton.disabled = false;
-        };
-
-        recognition.onend = function() {
-            voiceButton.disabled = false;
-        };
-
-        recognition.onresult = async function(event) {
-            const userSpeech = event.results[0][0].transcript.trim();
-            if (!userSpeech) {
-                statusEl.innerText = "❌ Gapirish aniqlanmadi.";
-                return;
-            }
-            await processMessage(userSpeech);
-        };
-
-        try {
-            recognition.start();
-        } catch (error) {
-            console.error("VOICE START ERROR:", error);
-            statusEl.innerText = "❌ Ovozni ishga tushirishda xatolik.";
-        }
+        recognition.start();
     }
 </script>
 
@@ -455,52 +487,39 @@ HTML_PAGE = """
 </html>
 """
 
-
-# =========================================================
-# HOME PAGE
-# =========================================================
-
 @app.get("/", response_class=HTMLResponse)
 def index():
     return HTMLResponse(content=HTML_PAGE)
 
 
 # =========================================================
-# CHAT API
+# CHAT API (Multimodal, Chat History va Fayl qabul qilish)
 # =========================================================
 
 @app.post("/chat")
-def chat_with_ai(chat_request: ChatRequest):
-    user_message = chat_request.message.strip()
-
-    if not user_message:
-        raise HTTPException(
-            status_code=400,
-            detail="message is required"
-        )
-
-    if not api_key:
-        raise HTTPException(
-            status_code=500,
-            detail="GEMINI_API_KEY topilmadi. .env faylni tekshiring."
-        )
+async def chat_with_ai(
+    message: str = Form(...),
+    file: UploadFile = File(None)
+):
+    if not api_key or not chat_session:
+        raise HTTPException(status_code=500, detail="Gemini API kaliti topilmadi.")
 
     try:
-        client = genai.Client(api_key=api_key)
+        contents = [message]
 
-        response = client.models.generate_content(
-            model="gemini-3.5-flash",
-            contents=user_message,
-            config=types.GenerateContentConfig(
-                system_instruction="Siz Steve ismli aqlli va foydali sun'iy intellekt yordamchisisiz. O'zbek tilida qisqa, aniq va professional javob bering.",
-                max_output_tokens=1000
+        # Agar foydalanuvchi rasm yoki fayl yuklagan bo'lsa
+        if file:
+            file_bytes = await file.read()
+            contents.append(
+                types.Part.from_bytes(
+                    data=file_bytes,
+                    mime_type=file.content_type
+                )
             )
-        )
 
-        reply = response.text
-
-        if not reply:
-            reply = "Kechirasiz, javob olinmadi."
+        # Chat tarixi saqlangan holda Gemini ga so'rov yuborish
+        response = chat_session.send_message(contents)
+        reply = response.text if response else "Javob olinmadi."
 
         return {
             "response": reply,
@@ -508,15 +527,10 @@ def chat_with_ai(chat_request: ChatRequest):
         }
 
     except Exception as exc:
-        print("\n==============================")
-        print("GEMINI XATOSI:")
+        print("\n--- XATOLIK ---")
         print(repr(exc))
-        print("==============================\n")
-
-        raise HTTPException(
-            status_code=500,
-            detail=str(exc)
-        )
+        print("---------------\n")
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 # =========================================================
@@ -524,9 +538,4 @@ def chat_with_ai(chat_request: ChatRequest):
 # =========================================================
 
 if __name__ == "__main__":
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True
-    )
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
