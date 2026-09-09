@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, PlainTextResponse
+from fastapi.staticfiles import StaticFiles
 
 from google import genai
 from google.genai import types
@@ -30,6 +31,12 @@ app = FastAPI(
     title="Steve Assistant",
     version="1.0.0"
 )
+
+
+# =========================================================
+# STATIC FILES (404 xatosini oldini olish uchun static papkani ulash)
+# =========================================================
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
 # =========================================================
