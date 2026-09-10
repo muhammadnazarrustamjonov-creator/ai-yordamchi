@@ -103,20 +103,6 @@ def get_manifest():
                 "type": "image/png",
                 "purpose": "maskable"
             }
-        ],
-        "screenshots": [
-            {
-                "src": "/static/screenshot-1.png",
-                "sizes": "540x720",
-                "type": "image/png",
-                "form_factor": "narrow"
-            },
-            {
-                "src": "/static/screenshot-2.png",
-                "sizes": "1280x720",
-                "type": "image/png",
-                "form_factor": "wide"
-            }
         ]
     })
 
@@ -124,16 +110,14 @@ def get_manifest():
 @app.get("/static/service-worker.js")
 def get_service_worker():
     sw_code = """
-    const CACHE_NAME = 'steve-cache-v4';
+    const CACHE_NAME = 'steve-cache-v5';
     const urlsToCache = [
         '/',
         '/manifest.json',
         '/static/icon-192.png',
         '/static/icon-512.png',
         '/static/icon-192-maskable.png',
-        '/static/icon-512-maskable.png',
-        '/static/screenshot-1.png',
-        '/static/screenshot-2.png'
+        '/static/icon-512-maskable.png'
     ];
 
     self.addEventListener('install', (event) => {
@@ -457,14 +441,12 @@ async def chat_with_ai(
         contents = [message]
         
         if file:
-            # Faylni vaqtinchalik diskka yozib olamiz
             suffix = os.path.splitext(file.filename)[1]
             with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
                 contents_bytes = await file.read()
                 temp_file.write(contents_bytes)
                 temp_file_path = temp_file.name
 
-            # Google Files API orqali katta fayllarni xavfsiz yuklaymiz
             uploaded_file_ref = client.files.upload(file=temp_file_path)
             contents.append(uploaded_file_ref)
 
@@ -475,7 +457,6 @@ async def chat_with_ai(
         raise HTTPException(status_code=500, detail=str(exc))
 
     finally:
-        # Vaqtinchalik faylni xotiradan/diskdan tozalaymiz
         if temp_file_path and os.path.exists(temp_file_path):
             try:
                 os.remove(temp_file_path)
