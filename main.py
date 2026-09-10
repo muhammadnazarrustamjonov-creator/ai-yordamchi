@@ -54,7 +54,7 @@ client = genai.Client(api_key=api_key) if api_key else None
 chat_session = None
 if client:
     chat_session = client.chats.create(
-        model="gemini-3.5-flash",
+        model="gemini-2.5-flash",
         config=types.GenerateContentConfig(
             system_instruction="Siz Steve ismli aqlli, do'stona va professional sun'iy intellekt yordamchisisiz. O'zbek tilida aniq va tushunarli javob bering.",
             max_output_tokens=2000
@@ -149,7 +149,7 @@ def get_service_worker():
 
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(request, "index.html", {})
 
 
 # =========================================================
