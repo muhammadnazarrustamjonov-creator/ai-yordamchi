@@ -52,7 +52,7 @@ client = genai.Client(api_key=api_key) if api_key else None
 chat_session = None
 if client:
     chat_session = client.chats.create(
-        model="gemini-2.5-flash",
+        model="gemini-3.5-flash",
         config=types.GenerateContentConfig(
             system_instruction="Siz Steve ismli aqlli, do'stona va professional sun'iy intellekt yordamchisisiz. O'zbek tilida aniq va tushunarli javob bering.",
             max_output_tokens=2000
@@ -91,18 +91,6 @@ def get_manifest(request: Request):
                 "sizes": "512x512",
                 "type": "image/png",
                 "purpose": "any"
-            },
-            {
-                "src": f"{base_url}/static/icon-192-maskable.png.png",
-                "sizes": "192x192",
-                "type": "image/png",
-                "purpose": "maskable"
-            },
-            {
-                "src": f"{base_url}/static/icon-512-maskable.png.png",
-                "sizes": "512x512",
-                "type": "image/png",
-                "purpose": "maskable"
             }
         ]
     })
@@ -111,14 +99,12 @@ def get_manifest(request: Request):
 @app.get("/static/service-worker.js")
 def get_service_worker():
     sw_code = """
-    const CACHE_NAME = 'steve-cache-v5';
+    const CACHE_NAME = 'steve-cache-v6';
     const urlsToCache = [
         '/',
         '/manifest.json',
         '/static/icon-192.png',
-        '/static/icon-512.png',
-        '/static/icon-192-maskable.png.png',
-        '/static/icon-512-maskable.png.png'
+        '/static/icon-512.png'
     ];
 
     self.addEventListener('install', (event) => {
