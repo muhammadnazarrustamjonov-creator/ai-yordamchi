@@ -24,7 +24,7 @@ api_key = os.getenv("GEMINI_API_KEY")
 
 app = FastAPI(
     title="Steve Assistant",
-    version="2.1.0"
+    version="2.1.1"
 )
 
 # =========================================================
@@ -99,7 +99,7 @@ def get_manifest(request: Request):
 @app.get("/static/service-worker.js")
 def get_service_worker():
     sw_code = """
-    const CACHE_NAME = 'steve-cache-v7';
+    const CACHE_NAME = 'steve-cache-v8';
     const urlsToCache = [
         '/',
         '/manifest.json',
@@ -469,7 +469,7 @@ HTML_PAGE = """
             font-size: 11px;
             color: var(--text-muted);
             display: flex;
-            justify-content: space-between;
+            justify-content: flex-end;
             align-items: center;
             padding: 0 4px;
         }
@@ -523,7 +523,6 @@ HTML_PAGE = """
             </button>
         </div>
         <div class="status-bar">
-            <span id="sub-status">Gemini 3.5 Flash modeli</span>
             <span>Steve v2.1</span>
         </div>
     </div>
