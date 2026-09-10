@@ -51,7 +51,7 @@ client = genai.Client(api_key=api_key) if api_key else None
 chat_session = None
 if client:
     chat_session = client.chats.create(
-        model="gemini-2.5-flash",
+        model="gemini-3.5-flash",
         config=types.GenerateContentConfig(
             system_instruction="Siz Steve ismli aqlli, do'stona va professional sun'iy intellekt yordamchisisiz. O'zbek tilida aniq va tushunarli javob bering.",
             max_output_tokens=2000
@@ -79,16 +79,42 @@ def get_manifest():
         "dir": "ltr",
         "icons": [
             {
-                "src": "/static/icon-512.png",
-                "sizes": "512x512",
-                "type": "image/png",
-                "purpose": "any maskable"
-            },
-            {
                 "src": "/static/icon-192.png",
                 "sizes": "192x192",
                 "type": "image/png",
-                "purpose": "any maskable"
+                "purpose": "any"
+            },
+            {
+                "src": "/static/icon-512.png",
+                "sizes": "512x512",
+                "type": "image/png",
+                "purpose": "any"
+            },
+            {
+                "src": "/static/icon-192-maskable.png",
+                "sizes": "192x192",
+                "type": "image/png",
+                "purpose": "maskable"
+            },
+            {
+                "src": "/static/icon-512-maskable.png",
+                "sizes": "512x512",
+                "type": "image/png",
+                "purpose": "maskable"
+            }
+        ],
+        "screenshots": [
+            {
+                "src": "/static/screenshot-1.png",
+                "sizes": "540x720",
+                "type": "image/png",
+                "form_factor": "narrow"
+            },
+            {
+                "src": "/static/screenshot-2.png",
+                "sizes": "1280x720",
+                "type": "image/png",
+                "form_factor": "wide"
             }
         ]
     })
@@ -97,12 +123,16 @@ def get_manifest():
 @app.get("/static/service-worker.js")
 def get_service_worker():
     sw_code = """
-    const CACHE_NAME = 'steve-cache-v3';
+    const CACHE_NAME = 'steve-cache-v4';
     const urlsToCache = [
         '/',
         '/manifest.json',
         '/static/icon-192.png',
-        '/static/icon-512.png'
+        '/static/icon-512.png',
+        '/static/icon-192-maskable.png',
+        '/static/icon-512-maskable.png',
+        '/static/screenshot-1.png',
+        '/static/screenshot-2.png'
     ];
 
     self.addEventListener('install', (event) => {
