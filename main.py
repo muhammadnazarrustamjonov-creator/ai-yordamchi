@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, PlainTextResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -60,88 +60,6 @@ if client:
             max_output_tokens=2000
         )
     )
-
-# =========================================================
-# PWA MANIFEST & SERVICE WORKER
-# =========================================================
-
-@app.get("/manifest.json")
-def get_manifest(request: Request):
-    base_url = str(request.base_url).rstrip("/")
-    return JSONResponse({
-        "id": "/",
-        "name": "Steve Assistant",
-        "short_name": "Steve",
-        "description": "Sun'iy intellekt yordamchisi",
-        "start_url": "/",
-        "scope": "/",
-        "display": "standalone",
-        "background_color": "#090d16",
-        "theme_color": "#090d16",
-        "orientation": "portrait",
-        "lang": "uz",
-        "dir": "ltr",
-        "icons": [
-            {
-                "src": f"{base_url}/static/icon-192.png",
-                "sizes": "192x192",
-                "type": "image/png",
-                "purpose": "any"
-            },
-            {
-                "src": f"{base_url}/static/icon-512.png",
-                "sizes": "512x512",
-                "type": "image/png",
-                "purpose": "any"
-            }
-        ]
-    })
-
-
-@app.get("/static/service-worker.js")
-def get_service_worker():
-    sw_code = """
-    const CACHE_NAME = 'steve-cache-v8';
-    const urlsToCache = [
-        '/',
-        '/manifest.json',
-        '/static/icon-192.png',
-        '/static/icon-512.png'
-    ];
-
-    self.addEventListener('install', (event) => {
-        event.waitUntil(
-            caches.open(CACHE_NAME).then((cache) => {
-                return cache.addAll(urlsToCache);
-            })
-        );
-        self.skipWaiting();
-    });
-
-    self.addEventListener('activate', (event) => {
-        event.waitUntil(
-            caches.keys().then((cacheNames) => {
-                return Promise.all(
-                    cacheNames.map((cacheName) => {
-                        if (cacheName !== CACHE_NAME) {
-                            return caches.delete(cacheName);
-                        }
-                    })
-                );
-            })
-        );
-        event.clients.claim();
-    });
-
-    self.addEventListener('fetch', (event) => {
-        event.respondWith(
-            fetch(event.request)
-                .catch(() => caches.match(event.request))
-        );
-    });
-    """
-    return PlainTextResponse(sw_code, media_type="application/javascript")
-
 
 # =========================================================
 # HTML ROUTE (TEMPLATES)
