@@ -24,7 +24,7 @@ api_key = os.getenv("GEMINI_API_KEY")
 
 app = FastAPI(
     title="Steve Assistant",
-    version="2.0.0"
+    version="2.1.0"
 )
 
 # =========================================================
@@ -74,8 +74,8 @@ def get_manifest(request: Request):
         "start_url": "/",
         "scope": "/",
         "display": "standalone",
-        "background_color": "#0f172a",
-        "theme_color": "#0f172a",
+        "background_color": "#090d16",
+        "theme_color": "#090d16",
         "orientation": "portrait",
         "lang": "uz",
         "dir": "ltr",
@@ -99,7 +99,7 @@ def get_manifest(request: Request):
 @app.get("/static/service-worker.js")
 def get_service_worker():
     sw_code = """
-    const CACHE_NAME = 'steve-cache-v6';
+    const CACHE_NAME = 'steve-cache-v7';
     const urlsToCache = [
         '/',
         '/manifest.json',
@@ -142,7 +142,7 @@ def get_service_worker():
 
 
 # =========================================================
-# HTML & FRONTEND
+# HTML & MODERN FRONTEND
 # =========================================================
 
 HTML_PAGE = """
@@ -153,7 +153,7 @@ HTML_PAGE = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Steve Assistant</title>
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#0f172a">
+    <meta name="theme-color" content="#090d16">
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
@@ -162,164 +162,387 @@ HTML_PAGE = """
       }
     </script>
     <style>
-        * { box-sizing: border-box; }
+        :root {
+            --bg-main: #090d16;
+            --bg-card: #111827;
+            --bg-input: #1f2937;
+            --border-color: #374151;
+            --accent-color: #3b82f6;
+            --accent-hover: #2563eb;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --bot-bubble: #1f2937;
+            --user-bubble: #2563eb;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
         body {
-            margin: 0;
-            min-height: 100vh;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 800px;
+            height: 100%;
+            max-height: 900px;
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4);
+            overflow: hidden;
+        }
+
+        @media (max-width: 840px) {
+            .app-container {
+                height: 100%;
+                max-height: 100vh;
+                border-radius: 0;
+                border: none;
+            }
+        }
+
+        /* Header */
+        .app-header {
+            padding: 16px 20px;
+            background-color: rgba(17, 24, 39, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: #0f172a;
-            color: #f8fafc;
-            font-family: Arial, sans-serif;
-            padding: 15px;
-        }
-        .card {
-            background: #1e293b;
-            padding: 20px;
-            border-radius: 16px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-            width: 100%;
-            max-width: 650px;
-            text-align: center;
-            border: 1px solid #334155;
-        }
-        h1 { margin: 0 0 5px 0; color: #38bdf8; font-size: 28px; }
-        .sub { color: #94a3b8; font-size: 13px; margin-bottom: 12px; }
-        #status {
-            color: #38bdf8;
-            margin-bottom: 10px;
             font-weight: bold;
-            font-size: 13px;
-            padding: 8px;
-            background: #0f172a;
-            border-radius: 8px;
-            border: 1px solid #334155;
+            font-size: 18px;
+            color: white;
+            box-shadow: 0 4px 12px rgba(59, 130, 246,.3);
         }
-        #chat-box {
-            background: #0f172a;
-            border: 1px solid #334155;
-            border-radius: 8px;
-            padding: 15px;
-            min-height: 150px;
-            max-height: 320px;
-            text-align: left;
-            margin-bottom: 12px;
-            overflow-y: auto;
-            white-space: pre-wrap;
-            font-size: 14px;
-            line-height: 1.6;
+
+        .title-group h1 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-main);
         }
-        .file-preview {
+
+        .title-group span {
             font-size: 12px;
-            color: #38bdf8;
-            margin-bottom: 8px;
-            text-align: left;
-            display: none;
-        }
-        .input-group {
+            color: var(--text-muted);
             display: flex;
-            gap: 6px;
-            margin-bottom: 8px;
             align-items: center;
+            gap: 5px;
         }
-        input[type="text"] {
+
+        .title-group span::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background-color: #10b981;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .icon-btn {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .icon-btn:hover {
+            background-color: var(--bg-input);
+            color: var(--text-main);
+            border-color: var(--text-muted);
+        }
+
+        /* Chat Area */
+        .chat-messages {
             flex: 1;
-            min-width: 0;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            scroll-behavior: smooth;
+        }
+
+        .message {
+            max-width: 75%;
+            padding: 12px 16px;
+            border-radius: 16px;
+            font-size: 14px;
+            line-height: 1.5;
+            word-break: break-word;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.user {
+            background-color: var(--user-bubble);
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.bot {
+            background-color: var(--bot-bubble);
+            color: var(--text-main);
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+            border: 1px solid var(--border-color);
+        }
+
+        .message.error {
+            background-color: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #f87171;
+            align-self: center;
+            text-align: center;
+            width: 100%;
+            max-width: 100%;
+        }
+
+        .welcome-card {
+            text-align: center;
+            margin: auto;
+            padding: 40px 20px;
+            color: var(--text-muted);
+        }
+
+        .welcome-card h2 {
+            color: var(--text-main);
+            font-size: 20px;
+            margin-bottom: 8px;
+        }
+
+        /* File Preview Container */
+        .file-preview-bar {
+            padding: 8px 20px;
+            background-color: rgba(31, 41, 55, 0.5);
+            border-top: 1px solid var(--border-color);
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 13px;
+            color: var(--accent-color);
+        }
+
+        .file-preview-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .remove-file {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .remove-file:hover { color: #f87171; }
+
+        /* Input Area */
+        .input-area {
+            padding: 16px 20px;
+            background-color: var(--bg-card);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .input-wrapper {
+            display: flex;
+            align-items: center;
+            background-color: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 6px 8px;
+            transition: border-color 0.2s;
+        }
+
+        .input-wrapper:focus-within {
+            border-color: var(--accent-color);
+        }
+
+        .chat-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text-main);
             padding: 10px 12px;
-            border-radius: 8px;
-            border: 1px solid #334155;
-            background: #0f172a;
-            color: #f8fafc;
             font-size: 14px;
             outline: none;
         }
-        input[type="text"]:focus { border-color: #38bdf8; }
-        .file-btn {
-            background: #334155;
-            color: white;
-            padding: 10px 12px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 13px;
+
+        .chat-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .action-icon-btn {
+            background: transparent;
             border: none;
+            color: var(--text-muted);
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-        }
-        .file-btn:hover { background: #475569; }
-        input[type="file"] { display: none; }
-        button {
-            background: #0284c7;
-            color: white;
-            border: none;
-            padding: 10px 16px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: bold;
             transition: 0.2s;
         }
-        button:hover { background: #0369a1; }
-        button:disabled { opacity: 0.6; cursor: not-allowed; }
-        .actions-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 6px;
+
+        .action-icon-btn:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+            color: var(--text-main);
         }
-        .voice-btn { background: #334155; }
-        .voice-btn:hover { background: #475569; }
-        .user-msg { color: #38bdf8; font-weight: bold; }
-        .steve-msg { color: #4ade80; font-weight: bold; }
-        .error-msg { color: #f87171; font-weight: bold; }
+
+        .send-btn {
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: 0.2s;
+        }
+
+        .send-btn:hover {
+            background-color: var(--accent-hover);
+        }
+
+        .send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Status bar small text */
+        .status-bar {
+            font-size: 11px;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 4px;
+        }
     </style>
 </head>
 <body>
 
-<div class="card">
-    <h1>Steve</h1>
-    <div class="sub">Sun'iy intellekt yordamchisi</div>
-    <div id="status">Tizim tayyor. Matn yozing yoki rasm/fayl yuklang...</div>
-    
-    <div id="chat-box">
-        <span>Suhbat tarixi shu yerda ko'rsatiladi...</span>
+<div class="app-container">
+    <!-- Header -->
+    <div class="app-header">
+        <div class="header-info">
+            <div class="avatar">S</div>
+            <div class="title-group">
+                <h1>Steve Assistant</h1>
+                <span id="status-text">Faol va tayyor</span>
+            </div>
+        </div>
+        <div class="header-actions">
+            <button class="icon-btn" onclick="startVoice()" title="Ovozli qidiruv">🎤</button>
+            <button class="icon-btn" onclick="clearChatHistory()" title="Suhbatni tozalash">🔄</button>
+        </div>
     </div>
 
-    <div id="file-name-display" class="file-preview">Biriktirilgan fayl: <span id="file-title"></span></div>
-
-    <div class="input-group">
-        <input type="text" id="user-input" placeholder="Xabaringizni yozing..." onkeydown="checkEnter(event)">
-        <label for="file-input" class="file-btn" title="Fayl yuklash">📁 Fayl</label>
-        <input type="file" id="file-input" accept="image/*,audio/*,application/pdf,.txt,.py,.js" onchange="handleFileSelect(event)">
-        <button id="send-button" onclick="sendMessage()">Yuborish ➔</button>
+    <!-- Chat Messages Container -->
+    <div class="chat-messages" id="chat-box">
+        <div class="welcome-card" id="welcome-card">
+            <h2>Assalomu alaykum!</h2>
+            <p>Men Steve, sizning sun'iy intellekt yordamchingizman. Bugun sizga qanday yordam bera olaman?</p>
+        </div>
     </div>
 
-    <div class="actions-grid">
-        <button id="voice-button" class="voice-btn" onclick="startVoice()">Ovoz bilan 🎤</button>
-        <button onclick="clearChatHistory()" style="background: #475569;">Tozalash 🔄</button>
+    <!-- File Preview Bar -->
+    <div class="file-preview-bar" id="file-preview-bar">
+        <div class="file-preview-info">
+            <span>📎 Fayl:</span>
+            <span id="file-name-title" style="font-weight: 500;"></span>
+        </div>
+        <button class="remove-file" onclick="removeSelectedFile()" title="O'chirish">&times;</button>
+    </div>
+
+    <!-- Input Form -->
+    <div class="input-area">
+        <div class="input-wrapper">
+            <input type="file" id="file-input" style="display: none;" accept="image/*,audio/*,application/pdf,.txt,.py,.js" onchange="handleFileSelect(event)">
+            <button class="action-icon-btn" onclick="document.getElementById('file-input').click()" title="Fayl biriktirish">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>
+            </button>
+            <input type="text" id="user-input" class="chat-input" placeholder="Xabaringizni yozing..." onkeydown="checkEnter(event)">
+            <button class="send-btn" id="send-button" onclick="sendMessage()" title="Yuborish">
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M12 5l7 7-7 7"></path></svg>
+            </button>
+        </div>
+        <div class="status-bar">
+            <span id="sub-status">Gemini 3.5 Flash modeli</span>
+            <span>Steve v2.1</span>
+        </div>
     </div>
 </div>
 
 <script>
-    const statusEl = document.getElementById("status");
     const chatBox = document.getElementById("chat-box");
     const userInput = document.getElementById("user-input");
     const sendButton = document.getElementById("send-button");
+    const statusText = document.getElementById("status-text");
     const fileInput = document.getElementById("file-input");
-    const fileDisplay = document.getElementById("file-name-display");
-    const fileTitle = document.getElementById("file-title");
+    const filePreviewBar = document.getElementById("file-preview-bar");
+    const fileNameTitle = document.getElementById("file-name-title");
+    const welcomeCard = document.getElementById("welcome-card");
 
     let selectedFile = null;
-    let chatHistoryHtml = "";
-
-    function escapeHtml(text) {
-        const div = document.createElement("div");
-        div.textContent = text;
-        return div.innerHTML;
-    }
 
     function checkEnter(event) {
-        if (event.key === "Enter") {
+        if (event.key === "Enter" && !event.shiftKey) {
             event.preventDefault();
             sendMessage();
         }
@@ -329,34 +552,72 @@ HTML_PAGE = """
         const file = event.target.files[0];
         if (file) {
             selectedFile = file;
-            fileTitle.textContent = file.name;
-            fileDisplay.style.display = "block";
-            statusEl.innerText = `📎 Fayl tanlandi: ${file.name}`;
+            fileNameTitle.textContent = file.name;
+            filePreviewBar.style.display = "flex";
+            statusText.textContent = "Fayl biriktirildi";
         }
     }
 
+    function removeSelectedFile() {
+        selectedFile = null;
+        fileInput.value = "";
+        filePreviewBar.style.display = "none";
+        statusText.textContent = "Faol va tayyor";
+    }
+
     function clearChatHistory() {
-        chatHistoryHtml = "";
-        chatBox.innerHTML = '<span>Suhbat tarixi tozalandi...</span>';
-        statusEl.innerText = "🔄 Tarix tozalandi.";
+        chatBox.innerHTML = `
+            <div class="welcome-card" id="welcome-card">
+                <h2>Suhbat tozalandi</h2>
+                <p>Yangi mavzuni boshlashingiz mumkin.</p>
+            </div>
+        `;
+        statusText.textContent = "Tarix tozalandi";
+    }
+
+    function appendMessage(sender, text, isError = false) {
+        if (welcomeCard && welcomeCard.parentNode) {
+            welcomeCard.remove();
+        }
+
+        const msgDiv = document.createElement("div");
+        msgDiv.className = `message ${sender} ${isError ? 'error' : ''}`;
+        
+        if (sender === 'bot' && !isError) {
+            msgDiv.innerHTML = `<strong>Steve:</strong><br>${escapeHtml(text)}`;
+        } else if (sender === 'user') {
+            msgDiv.innerHTML = `<strong>Siz:</strong><br>${escapeHtml(text)}`;
+        } else {
+            msgDiv.textContent = text;
+        }
+
+        chatBox.appendChild(msgDiv);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement("div");
+        div.textContent = text;
+        return div.innerHTML;
     }
 
     async function sendMessage() {
         const text = userInput.value.trim();
         if (!text && !selectedFile) return;
 
-        const displayMessage = text + (selectedFile ? ` [Fayl: ${selectedFile.name}]` : "");
-        chatHistoryHtml += `<br><br><span class="user-msg">Siz:</span> ${escapeHtml(displayMessage)}`;
-        chatBox.innerHTML = chatHistoryHtml;
-        chatBox.scrollTop = chatBox.scrollHeight;
+        const displayMsg = text + (selectedFile ? ` [Fayl: ${selectedFile.name}]` : "");
+        appendMessage('user', displayMsg);
 
         userInput.value = "";
-        statusEl.innerText = "⏳ Steve o'ylayapti...";
+        const currentFile = selectedFile;
+        removeSelectedFile();
+
+        statusText.textContent = "Steve o'ylayapti...";
         sendButton.disabled = true;
 
         const formData = new FormData();
         formData.append("message", text || "Faylni tahlil qil");
-        if (selectedFile) formData.append("file", selectedFile);
+        if (currentFile) formData.append("file", currentFile);
 
         try {
             const res = await fetch("/chat", { method: "POST", body: formData });
@@ -365,19 +626,13 @@ HTML_PAGE = """
                 throw new Error(errData.detail || "Server xatosi");
             }
             const data = await res.json();
-            chatHistoryHtml += `<br><br><span class="steve-msg">Steve:</span> ${escapeHtml(data.response)}`;
-            chatBox.innerHTML = chatHistoryHtml;
-            chatBox.scrollTop = chatBox.scrollHeight;
-            statusEl.innerText = "✅ Tayyor.";
+            appendMessage('bot', data.response);
+            statusText.textContent = "Faol va tayyor";
         } catch (err) {
-            chatHistoryHtml += `<br><br><span class="error-msg">Xatolik:</span> ${escapeHtml(err.message)}`;
-            chatBox.innerHTML = chatHistoryHtml;
-            statusEl.innerText = "❌ Xatolik.";
+            appendMessage('bot', `Xatolik: ${err.message}`, true);
+            statusText.textContent = "Xatolik yuz berdi";
         } finally {
             sendButton.disabled = false;
-            selectedFile = null;
-            fileInput.value = "";
-            fileDisplay.style.display = "none";
             userInput.focus();
         }
     }
@@ -385,13 +640,13 @@ HTML_PAGE = """
     function startVoice() {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SpeechRecognition) {
-            statusEl.innerText = "❌ Brauzer ovozni qo'llab-quvvatlamaydi.";
+            statusText.textContent = "Ovozli qidiruv qo'llab-quvvatlanmaydi";
             return;
         }
         const recognition = new SpeechRecognition();
         recognition.lang = "uz-UZ";
-        recognition.onstart = () => statusEl.innerText = "🎤 Eshitayapman...";
-        recognition.onerror = () => statusEl.innerText = "❌ Xatolik.";
+        recognition.onstart = () => statusText.textContent = "Eshitayapman...";
+        recognition.onerror = () => statusText.textContent = "Ovozni aniqlashda xato";
         recognition.onresult = async (event) => {
             userInput.value = event.results[0][0].transcript.trim();
             await sendMessage();
