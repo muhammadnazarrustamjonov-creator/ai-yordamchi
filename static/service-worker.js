@@ -1,11 +1,11 @@
-const CACHE_NAME = 'steve-cache-v4';
+const CACHE_NAME = 'steve-cache-v5';
 const urlsToCache = [
     '/',
     '/static/manifest.json',
     '/static/icon-192.png',
     '/static/icon-512.png',
-    '/static/icon-192-maskable.png',
-    '/static/icon-512-maskable.png'
+    '/static/icon-192-maskable.png.png',
+    '/static/icon-512-maskable.png.png'
 ];
 
 self.addEventListener('install', (event) => {

@@ -3,7 +3,7 @@ import uvicorn
 import tempfile
 from dotenv import load_dotenv
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, PlainTextResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -64,7 +64,8 @@ if client:
 # =========================================================
 
 @app.get("/manifest.json")
-def get_manifest():
+def get_manifest(request: Request):
+    base_url = str(request.base_url).rstrip("/")
     return JSONResponse({
         "id": "/",
         "name": "Steve Assistant",
@@ -80,25 +81,25 @@ def get_manifest():
         "dir": "ltr",
         "icons": [
             {
-                "src": "/static/icon-192.png",
+                "src": f"{base_url}/static/icon-192.png",
                 "sizes": "192x192",
                 "type": "image/png",
                 "purpose": "any"
             },
             {
-                "src": "/static/icon-512.png",
+                "src": f"{base_url}/static/icon-512.png",
                 "sizes": "512x512",
                 "type": "image/png",
                 "purpose": "any"
             },
             {
-                "src": "/static/icon-192-maskable.png",
+                "src": f"{base_url}/static/icon-192-maskable.png.png",
                 "sizes": "192x192",
                 "type": "image/png",
                 "purpose": "maskable"
             },
             {
-                "src": "/static/icon-512-maskable.png",
+                "src": f"{base_url}/static/icon-512-maskable.png.png",
                 "sizes": "512x512",
                 "type": "image/png",
                 "purpose": "maskable"
@@ -116,8 +117,8 @@ def get_service_worker():
         '/manifest.json',
         '/static/icon-192.png',
         '/static/icon-512.png',
-        '/static/icon-192-maskable.png',
-        '/static/icon-512-maskable.png'
+        '/static/icon-192-maskable.png.png',
+        '/static/icon-512-maskable.png.png'
     ];
 
     self.addEventListener('install', (event) => {
