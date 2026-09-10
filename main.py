@@ -1,5 +1,6 @@
 import os
 import uvicorn
+import tempfile
 from dotenv import load_dotenv
 
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
@@ -51,7 +52,7 @@ client = genai.Client(api_key=api_key) if api_key else None
 chat_session = None
 if client:
     chat_session = client.chats.create(
-        model="gemini-3.5-flash",
+        model="gemini-2.5-flash",
         config=types.GenerateContentConfig(
             system_instruction="Siz Steve ismli aqlli, do'stona va professional sun'iy intellekt yordamchisisiz. O'zbek tilida aniq va tushunarli javob bering.",
             max_output_tokens=2000
@@ -438,7 +439,7 @@ def index():
 
 
 # =========================================================
-# CHAT API
+# CHAT API (FILE UPLOAD SUPPORT)
 # =========================================================
 
 @app.post("/chat")
@@ -449,19 +450,37 @@ async def chat_with_ai(
     if not api_key or not chat_session:
         raise HTTPException(status_code=500, detail="Gemini API kaliti topilmadi.")
 
+    temp_file_path = None
+    uploaded_file_ref = None
+
     try:
         contents = [message]
+        
         if file:
-            file_bytes = await file.read()
-            contents.append(
-                types.Part.from_bytes(data=file_bytes, mime_type=file.content_type)
-            )
+            # Faylni vaqtinchalik diskka yozib olamiz
+            suffix = os.path.splitext(file.filename)[1]
+            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
+                contents_bytes = await file.read()
+                temp_file.write(contents_bytes)
+                temp_file_path = temp_file.name
+
+            # Google Files API orqali katta fayllarni xavfsiz yuklaymiz
+            uploaded_file_ref = client.files.upload(file=temp_file_path)
+            contents.append(uploaded_file_ref)
 
         response = chat_session.send_message(contents)
         return {"response": response.text if response else "Javob olinmadi.", "status": "success"}
 
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
+
+    finally:
+        # Vaqtinchalik faylni xotiradan/diskdan tozalaymiz
+        if temp_file_path and os.path.exists(temp_file_path):
+            try:
+                os.remove(temp_file_path)
+            except Exception:
+                pass
 
 
 # =========================================================
